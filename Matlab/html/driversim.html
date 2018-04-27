@@ -1,0 +1,244 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>driversim</title><meta name="generator" content="MATLAB 9.3"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2018-04-23"><meta name="DC.source" content="driversim.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#1">Initialisation</a></li><li><a href="#2">Working</a></li><li><a href="#3">Function Definitions: File Manipulation</a></li><li><a href="#4">Function Definitions: Conversions and Handlers</a></li><li><a href="#5">Function Definitions: FBD Model</a></li></ul></div><h2 id="1">Initialisation</h2><pre class="codeinput">close <span class="string">all</span>
+import <span class="string">constants.*</span>;
+setFILE()
+file = getFILE();
+</pre><h2 id="2">Working</h2><pre class="codeinput">d = file(:,1);
+e = file(:,2);
+L = max(d);
+distance_interpolated = 0:10:L; <span class="comment">% perform a calculation every 10m for the duration of the journey</span>
+elevation_interpolated = interp1(d,e,distance_interpolated);
+
+plot(d,e,<span class="string">'o'</span>,distance_interpolated,elevation_interpolated)
+
+kmhr_to_ms(10)
+[distance,elevation] = get_distance_and_elevation(file, 2);
+[F_roll] = get_F_roll(30);
+[F_aero] = get_F_aero(10);
+[F_grade] = get_F_grade(20);
+[F_inertia] = get_F_inertia(10);
+[F_trac] = get_F_trac(10, 10, 10);
+[TL_wheel] = get_TL_on_Wheels(F_trac);
+</pre><h2 id="3">Function Definitions: File Manipulation</h2><pre class="codeinput"><span class="keyword">function</span> [] = setFILE()
+<span class="keyword">global</span> FILE
+FILE = csvread(c.filename,1,0);
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> [f] = getFILE()
+<span class="keyword">global</span> FILE
+f = FILE;
+<span class="keyword">end</span>
+</pre><img vspace="5" hspace="5" src="driversim_01.png" alt=""> <h2 id="4">Function Definitions: Conversions and Handlers</h2><pre class="codeinput"><span class="keyword">function</span> [velocity_ms] = kmhr_to_ms(velocity_kmhr)
+velocity_ms = velocity_kmhr/3.6;
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> [cm] = inches_to_cm(inches)
+cm = 2.54*inches;
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> [d, e] = get_distance_and_elevation(file, index)
+<span class="comment">%get_distance_and_elevation: get distance and elevation</span>
+import <span class="string">constants.*</span>;
+d = file(index,1);
+e = file(index,2);
+<span class="keyword">end</span>
+</pre><pre class="codeoutput">
+ans =
+
+    2.7778
+
+</pre><h2 id="5">Function Definitions: FBD Model</h2><pre class="codeinput"><span class="keyword">function</span> [F_roll] = get_F_roll(sigma) <span class="comment">%Sigma in degrees</span>
+<span class="comment">%get_F_roll: get F_roll</span>
+import <span class="string">constants.*</span>;
+F_roll = c.C_roll*c.M_veh*c.g*cosd(sigma);
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> [F_aero] = get_F_aero(V)
+<span class="comment">%get_F_aero: get F_aero</span>
+import <span class="string">constants.*</span>;
+F_aero = (1/2)*c.Rho_air*c.A_f*c.C_d*V*V;
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> [F_grade] = get_F_grade(sigma)
+<span class="comment">%get_F_grade: get F_grade</span>
+import <span class="string">constants.*</span>;
+F_grade = c.M_veh*c.g*sind(sigma);
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> [F_inertia] = get_F_inertia(a)
+<span class="comment">%get_inertial_force: get inertial force</span>
+import <span class="string">constants.*</span>;
+F_inertia = c.M_veh*a;
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> [F_trac] = get_F_trac(sigma, V, a)
+<span class="comment">%get_F_trac: get traction force on external edge of wheels</span>
+F_trac = get_F_inertia(a) + get_F_grade(sigma) + get_F_aero(V) + get_F_roll(sigma);
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> [TL_wheel] = get_TL_on_Wheels(F_trac)
+<span class="comment">%get_TL_on_Wheels: get torque load on Wheels</span>
+import <span class="string">constants.*</span>;
+TL_wheel = inches_to_cm(c.rw)*F_trac;
+<span class="keyword">end</span>
+</pre><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2017b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% Initialisation
+close all
+import constants.*;
+setFILE()
+file = getFILE();
+
+%% Working
+d = file(:,1);
+e = file(:,2);
+L = max(d);
+distance_interpolated = 0:10:L; % perform a calculation every 10m for the duration of the journey
+elevation_interpolated = interp1(d,e,distance_interpolated);
+
+plot(d,e,'o',distance_interpolated,elevation_interpolated)
+
+kmhr_to_ms(10)
+[distance,elevation] = get_distance_and_elevation(file, 2);
+[F_roll] = get_F_roll(30);
+[F_aero] = get_F_aero(10);
+[F_grade] = get_F_grade(20);
+[F_inertia] = get_F_inertia(10);
+[F_trac] = get_F_trac(10, 10, 10);
+[TL_wheel] = get_TL_on_Wheels(F_trac);
+
+%% Function Definitions: File Manipulation
+
+function [] = setFILE()
+global FILE
+FILE = csvread(c.filename,1,0);
+end
+
+function [f] = getFILE()
+global FILE
+f = FILE;
+end
+
+%% Function Definitions: Conversions and Handlers
+
+function [velocity_ms] = kmhr_to_ms(velocity_kmhr)
+velocity_ms = velocity_kmhr/3.6;
+end
+
+function [cm] = inches_to_cm(inches)
+cm = 2.54*inches;
+end
+
+function [d, e] = get_distance_and_elevation(file, index)
+%get_distance_and_elevation: get distance and elevation
+import constants.*;
+d = file(index,1);
+e = file(index,2);
+end
+
+%% Function Definitions: FBD Model 
+
+function [F_roll] = get_F_roll(sigma) %Sigma in degrees
+%get_F_roll: get F_roll
+import constants.*;
+F_roll = c.C_roll*c.M_veh*c.g*cosd(sigma);
+end
+
+function [F_aero] = get_F_aero(V)
+%get_F_aero: get F_aero
+import constants.*;
+F_aero = (1/2)*c.Rho_air*c.A_f*c.C_d*V*V;
+end
+
+function [F_grade] = get_F_grade(sigma)
+%get_F_grade: get F_grade
+import constants.*;
+F_grade = c.M_veh*c.g*sind(sigma);
+end
+
+function [F_inertia] = get_F_inertia(a)
+%get_inertial_force: get inertial force
+import constants.*;
+F_inertia = c.M_veh*a;
+end
+
+function [F_trac] = get_F_trac(sigma, V, a)
+%get_F_trac: get traction force on external edge of wheels
+F_trac = get_F_inertia(a) + get_F_grade(sigma) + get_F_aero(V) + get_F_roll(sigma);
+end
+
+function [TL_wheel] = get_TL_on_Wheels(F_trac)
+%get_TL_on_Wheels: get torque load on Wheels
+import constants.*;
+TL_wheel = inches_to_cm(c.rw)*F_trac;
+end
+
+##### SOURCE END #####
+--></body></html>
