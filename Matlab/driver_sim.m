@@ -11,12 +11,12 @@ resolution = 1; % in meters
 distance_interpolated = 0:resolution:L; % perform a calculation every 10m for the duration of the journey
 elevation_interpolated = interp1(d,e,distance_interpolated);
 
-s = 10:10:110; %for all speed limits [10-110km/hr]
-%s = [50,80,110];
+%s = 10:10:110; %for all speed limits [10-110km/hr]
 
-trials = length(s);
+trials = length(c.SPEED_LIMITS);
 gears = length(c.GEAR_RATIOS);
 
+gradient_cache          = zeros(trials,gears,length(distance_interpolated));
 F_trac_cache            = zeros(trials,gears,length(distance_interpolated));
 TL_cache                = zeros(trials,gears,length(distance_interpolated));
 TL_MOTOR_cache          = zeros(trials,gears,length(distance_interpolated));
@@ -30,12 +30,11 @@ battery_in              = zeros(trials,gears,length(distance_interpolated));
 battery_charge          = zeros(trials,gears,length(distance_interpolated));
 
 %% Working
-speeds_to_be_tested = s
+speeds_to_be_tested = c.SPEED_LIMITS
 gears_to_be_tested = c.GEAR_RATIOS
 for t = 1:1:trials             %for all speed limits
-    speed_limit = kmhr_to_ms(s(t))
+    speed_limit = kmhr_to_ms(c.SPEED_LIMITS(t));
     
-    V = speed_limit;
     for g = 1:1:gears   %for all gear ratios
         gear = c.GEAR_RATIOS(g);
         total_time = 0;
@@ -46,88 +45,73 @@ for t = 1:1:trials             %for all speed limits
         gradient_now = 0;
         F_trac=0;
         power = 0;
-        for incriment = 1:1:length(distance_interpolated)          %every 10 m
+        time_inc_old = 0;
+        for inc = 1:1:length(distance_interpolated)          %every 10 m
+            [dist_inc, elev_inc] = get_distance_and_elevation(distance_interpolated,elevation_interpolated, inc);
+            time_inc = dist_speed_to_time(dist_inc, speed_limit);
+            time_accumulator_cache(t,g,inc) = time_accumulator_cache(t,g,inc) + time_inc;
             
+            if (inc == 1)
+                delta_dist = 0;
+                delta_elev = 0;
+                delta_time = time_inc;
+            else
+                [dist_inc_old, elev_inc_old] = get_distance_and_elevation(distance_interpolated,elevation_interpolated, (inc-1));
+                delta_dist = dist_inc - dist_inc_old;
+                delta_elev = elev_inc - elev_inc_old;
+                delta_time = time_inc - time_inc_old;
+            end
             
-            % Save last parameters
-            distance_last = distance_now;
-            elevation_last = elevation_now;
-            gradient_last = gradient_now;
-            F_trac_last = F_trac;
+            sigma = get_gradient(delta_dist, delta_elev);
+            gradient_cache(t,g,inc) = sigma;
             
-            %update distance and elevation
-            [distance_now,elevation_now] = get_distance_and_elevation(distance_interpolated,elevation_interpolated, incriment);
-            delta_distance = distance_now - distance_last;
-            delta_elevation = elevation_now - elevation_last;
-            
-            %update gradient
-            gradient_now = get_gradient(delta_distance,delta_elevation);
-            delta_gradient = gradient_now - gradient_last;
-            
-            %get true distance travels
-            delta_displacement = sqrt((delta_distance*delta_distance) + (delta_elevation*delta_elevation));
-            
-            %time incriment
-            delta_t = dist_speed_to_time(speed_limit,delta_displacement);
-            
-            sigma = gradient_now;
-            
-            F_trac = get_F_trac(sigma, V, acceleration);
-            delta_F_trac = F_trac - F_trac_last;
-            F_trac_cache(t,g,incriment) = F_trac;
+            % NO ACCELERATION CONSTANT SPEED
+            % NO ACCELERATION CONSTANT SPEED
+            % NO ACCELERATION CONSTANT SPEED
+            [F_trac] = get_F_trac(sigma, speed_limit, 0);
+            F_trac_cache(t,g,inc) = F_trac;
             
             [TL_wheel] = get_TL_on_Wheels(F_trac);
-            TL_cache(t,g,incriment) = TL_wheel;
+            TL_cache(t,g,inc) = TL_wheel;
             
-            TL_MOTOR_cache(t,g,incriment) = gear_transform_TL(gear, TL_wheel);
+            [TL_motor] = gear_transform_TL(gear, TL_wheel);
+            TL_MOTOR_cache(t,g,inc) = TL_motor;
             
-            work_cache(t,g,incriment) = get_Work(delta_displacement, F_trac);
+            [power_wheel] = get_Power(delta_dist, delta_time, F_trac);
+            [power_motor] = power_wheel*c.transmission_efficiency;
+            power_cache(t,g,inc) = power_motor;
             
+            if (power_motor > 0)
+                battery_out(t,g,inc) = power_motor*c.motor_output_efficiency;
+                battery_in(t,g,inc) = 0;
+            else
+                battery_out(t,g,inc) = 0;
+                battery_in(t,g,inc) = (-power_motor)*c.regen_braking_efficiency;
+            end
+
             
-            [power] = F_trac*speed_limit;
+            if(inc ~= 1)
+            battery_charge(t,g,inc) =battery_charge(t,g,inc-1) - battery_out(t,g,inc) + battery_in(t,g,inc);
+            end
             
-            power_cache(t,g,incriment) = power;
+            if(inc == 1)
+                 battery_charge(t,g,inc) = battery_charge(t,g,inc) + c.baseCharge;
+            end
             
-            %if power < 0 % We currently have 0% regenerative braking
-            %    power = c.regen*power;
-            %end
-            
-            total_time = delta_t + total_time;
-            total_power = power + total_power;
-            
-            
-            power_accumulator_cache(t,g,incriment) = total_power;
-            time_accumulator_cache(t,g,incriment) = total_time;
-            
+            time_inc_old = time_inc;
         end
     end
 end
 
-
-F_trac_cache(1,1,1) = 0;
-F_trac_cache(2,1,1) = 0;
-F_trac_cache(3,1,1) = 0;
-TL_cache(1,1,1) = 0;
-TL_cache(2,1,1) = 0;
-TL_cache(3,1,1) = 0;
-TL_MOTOR_cache(1,1,1) = 0;
-TL_MOTOR_cache(2,1,1) = 0;
-TL_MOTOR_cache(3,1,1) = 0;
-
-work_cache(1,1,1) = 0;
-work_cache(2,1,1) = 0;
-work_cache(3,1,1) = 0;
-power_cache(1,1,1) = 0;
-power_cache(2,1,1) = 0;
-power_cache(3,1,1) = 0;
-power_accumulator_cache;
-
-
+time_accumulator_cache = s_to_hr(time_accumulator_cache);
+time_unit = 'time(hours)';
 figure
+number_of_plots = 3;
 count = 1;
+grid_place = [1,5,9,2,6,10,3,7,11,4,8,12];
 for g = 1:1:gears
     gear = c.GEAR_RATIOS(g);
-    ax1 = subplot(gears,3,count);
+    ax1 = subplot(number_of_plots,gears,grid_place(count));
     count = count + 1;
     hold on
     
@@ -135,11 +119,11 @@ for g = 1:1:gears
         time_accumulator_cache(t,g,1) = 0;
         
         time = time_accumulator_cache(t,g,:);
-        y = power_accumulator_cache(t,g,:);
+        y = elevation_interpolated(:);
         plot(time(:), y(:))
     end
     
-    ax2 = subplot(gears,3,count);
+    ax2 = subplot(number_of_plots,gears,grid_place(count));
     count = count + 1;
     hold on
     
@@ -151,7 +135,7 @@ for g = 1:1:gears
         plot(time(:), y(:))
     end
     
-    ax3 = subplot(gears,3,count);
+    ax3 = subplot(number_of_plots,gears,grid_place(count));
     count = count + 1;
     hold on
     
@@ -159,31 +143,32 @@ for g = 1:1:gears
         time_accumulator_cache(t,g,1) = 0;
         
         time = time_accumulator_cache(t,g,:);
-        y = F_trac_cache(t,g,:);
+        y = battery_charge(t,g,:);
         plot(time(:), y(:))
     end
     
     
-    title(ax1,'power\_accumulated')
-    xlabel(ax1,'time(s)')
-    ylabel(ax1,'power\_accumulated')
-    legend(ax1,int2str(s(1)),int2str(s(2)),int2str(s(2)));
     
-    stringtoprint = strcat('Gear Ratio: ',int2str(gear));
-    title(ax2,stringtoprint)
-    xlabel(ax2,'time(s)')
-    ylabel(ax2,'TL_MOTOR_cache')
-    legend(ax1,int2str(s(1)),int2str(s(2)),int2str(s(2)));
+    stringtoprint = strcat('Elevation','[Gear Ratio: ',int2str(gear),']');
+    title(ax1,stringtoprint)
+    xlabel(ax1,time_unit)
+    ylabel(ax1,'Elevation')
+    legend(ax1,int2str(s(1)),int2str(s(2)),int2str(s(3)),int2str(s(4)),int2str(s(5)));
     
-    title(ax3,'F\_trac')
-    xlabel(ax3,'time(s)')
-    ylabel(ax3,'F\_trac')
-    legend(ax1,int2str(s(1)),int2str(s(2)),int2str(s(2)));
+    
+    title(ax2,'Motor Torque')
+    xlabel(ax2,time_unit)
+    ylabel(ax2,'Torque')
+    legend(ax2,int2str(s(1)),int2str(s(2)),int2str(s(3)),int2str(s(4)),int2str(s(5)));
+    
+    
+    
+    title(ax3,'Battery Charge (Starting with 5*10^6 of charge)')
+    xlabel(ax3,time_unit)
+    ylabel(ax3,'Charge')
+    legend(ax3,int2str(s(1)),int2str(s(2)),int2str(s(3)),int2str(s(4)),int2str(s(5)));
+    
 end
-
-
-
-
 
 %% Function Definitions: File Manipulation
 
@@ -199,6 +184,9 @@ end
 
 %% Function Definitions: Conversions and Handlers
 
+function [hr] = s_to_hr(s)
+hr = s/3600;
+end
 function [time] = dist_speed_to_time(distance, speed)
 time = distance/speed;
 end
@@ -218,9 +206,9 @@ d = distance_interpolated(index);
 e = elevation_interpolated(index);
 end
 
-function [gradient] = get_gradient(delta_distance, delta_elevation)
+function [gradient] = get_gradient(delta_dist, delta_elev)
 %get_gradient: get the road gradient from distance and elevation
-gradient = atand((delta_elevation/delta_distance));
+gradient = atand((delta_elev/delta_dist));
 end
 
 %% Function Definitions: FBD Model
@@ -275,7 +263,7 @@ import constants.*;
 TL_motor = TL_wheel/gear;
 end
 
-function [TL_motor] = gear_transform_W(gear, speed)
+function [W_motor] = gear_transform_W(gear, speed)
 import constants.*;
-TL_motor = speed*gear;
+W_motor = speed*gear;
 end

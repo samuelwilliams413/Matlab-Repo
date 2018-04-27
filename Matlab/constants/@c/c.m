@@ -8,7 +8,12 @@ classdef c
         C_d= 0.26; %--
         rw = 15 % inches [15-19] need to be tested
         regen = 0 % This is the percentage of power we get back from regenerative braking
-        filename = 'D:\Google Drive\Part B\Working Documents\Code\Matlab\UQ_Kingsbeach_Maleny_UQ.csv';
-        GEAR_RATIOS = [1,5,10,15]
+        filename = 'D:\Google Drive\Part B\Working Documents\Code\Matlab-Repo\Matlab\UQ_Kingsbeach_Maleny_UQ.csv';
+        GEAR_RATIOS = [1,5,10,15];
+        SPEED_LIMITS = [30,50,70,90,110];
+        transmission_efficiency = 1;
+        baseCharge = 5*10^6; % initial battery charge
+        motor_output_efficiency = 1;
+        regen_braking_efficiency = .55; %some random figure i found online
     end
 end
