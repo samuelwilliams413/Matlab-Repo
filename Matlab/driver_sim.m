@@ -1,18 +1,22 @@
 %% Initialisation
 clc
+clear
 close all
 
 PLOTTING = true;
 
 import constants.*;
 
+
 setFILE() % unless the folder 'constants' (and its subfolders) is added this step will fail
 file = getFILE();
 d = file(:,1);
 e = file(:,2);
 L = max(d);
+
 resolution = 1000; % in meters
-distance_interpolated = 0:resolution:L; % perform a calculation every 10m for the duration of the journey
+
+distance_interpolated = 0:resolution:L; % perform a calculation every 1m for the duration of the journey
 elevation_interpolated = interp1(d,e,distance_interpolated);
 
 %s = 10:10:110; %for all speed limits [10-110km/hr]
@@ -27,20 +31,25 @@ power_cache             = zeros(trials,gears,length(distance_interpolated));
 work_cache              = zeros(trials,gears,length(distance_interpolated));
 power_accumulator_cache = zeros(trials,gears,length(distance_interpolated));
 time_accumulator_cache  = zeros(trials,gears,length(distance_interpolated));
-
+energy_cache            = zeros(trials,gears,length(distance_interpolated));
+energy_accumulator_cache= zeros(trials,gears,length(distance_interpolated));
 battery_out             = zeros(trials,gears,length(distance_interpolated));
 battery_in              = zeros(trials,gears,length(distance_interpolated));
 battery_charge          = zeros(trials,gears,length(distance_interpolated));
 
+[capacity, qty, weight] = batteryCalculations()
+setBATTERY_PARAMETERS(capacity, qty, weight)
+
 %% Working
-resolution_in_meters = 10
+resolution_in_meters = resolution
 speeds_to_be_tested = c.SPEED_LIMITS
 gears_to_be_tested = c.GEAR_RATIOS
+
 for t = 1:1:trials             %for all speed limits
     speed_limit = kmhr_to_ms(c.SPEED_LIMITS(t));
     
     for g = 1:1:gears   %for all gear ratios
-        %clc
+        clc
         PROGRESS = [t,g]
         gear = c.GEAR_RATIOS(g);
         total_time = 0;
@@ -83,31 +92,40 @@ for t = 1:1:trials             %for all speed limits
             [TL_motor] = gear_transform_TL(gear, TL_wheel);
             TL_MOTOR_cache(t,g,inc) = TL_motor;
             
-            [power_wheel] = get_Power(delta_dist, delta_time, F_trac);
-            [power_motor] = power_wheel*c.TRANSMISSION_EFFICIENCY;
-            power_cache(t,g,inc) = power_motor;
+            [work_joules] = get_Work(delta_dist, delta_elev, F_trac);
+            [work_WH] = joules_to_WH(work_joules);
             
-            if (power_motor > 0)
-                battery_out(t,g,inc) = power_motor*c.MOTOR_OUTPUT_EFFICIENCY;
+            energy_motor = work_joules;
+            energy_cache(t,g,inc) = energy_motor;
+            
+            if (energy_motor > 0)
+                battery_out(t,g,inc) = energy_motor*c.MOTOR_OUTPUT_EFFICIENCY;
                 battery_in(t,g,inc) = 0;
             else
                 battery_out(t,g,inc) = 0;
-                battery_in(t,g,inc) = (-power_motor)*c.REGEN_BRAKING_EFFICIENCY;
+                battery_in(t,g,inc) = (-energy_motor)*c.REGEN_BRAKING_EFFICIENCY;
             end
             
             
             if(inc ~= 1)
-                battery_charge(t,g,inc) =battery_charge(t,g,inc-1) - battery_out(t,g,inc) + battery_in(t,g,inc);
+                battery_charge(t,g,inc) = battery_charge(t,g,inc-1) - battery_out(t,g,inc) + battery_in(t,g,inc);
             end
             
             if(inc == 1)
-                battery_charge(t,g,inc) = battery_charge(t,g,inc) + c.INITIAL_BATTERY_CHARGE;
+                battery_charge(t,g,inc) = battery_charge(t,g,inc) + getCAPACITY();
             end
             
             time_inc_old = time_inc;
         end
     end
 end
+
+
+resolution          = resolution
+extra_charge_needed = min(min(min(battery_charge(:,:,:))))
+capacity            = getCAPACITY()
+qty                 = getQTY()
+weight              = getWEIGHT()
 
 if(PLOTTING == true)
     time_accumulator_cache = s_to_hr(time_accumulator_cache);
@@ -139,7 +157,7 @@ if(PLOTTING == true)
             time_accumulator_cache(t,g,1) = 0;
             
             time = time_accumulator_cache(t,g,:);
-            y = TL_MOTOR_cache(t,g,:);
+            y = energy_cache(t,g,:);
             plot(time(:), y(:))
         end
         
@@ -151,11 +169,10 @@ if(PLOTTING == true)
             time_accumulator_cache(t,g,1) = 0;
             
             time = time_accumulator_cache(t,g,:);
+            y = (1/1000)*battery_charge(t,g,:)/3600;
             y = battery_charge(t,g,:);
             plot(time(:), y(:))
         end
-        
-        
         
         stringtoprint = strcat('Elevation','[Gear Ratio: ',int2str(gear),']');
         title(ax1,stringtoprint)
@@ -164,13 +181,13 @@ if(PLOTTING == true)
         legend(ax1,int2str(c.SPEED_LIMITS(1)),int2str(c.SPEED_LIMITS(2)),int2str(c.SPEED_LIMITS(3)),int2str(c.SPEED_LIMITS(4)),int2str(c.SPEED_LIMITS(5)));
         
         
-        title(ax2,'Motor Torque')
+        title(ax2,'Energy')
         xlabel(ax2,time_unit)
         ylabel(ax2,'Torque')
         legend(ax2,int2str(c.SPEED_LIMITS(1)),int2str(c.SPEED_LIMITS(2)),int2str(c.SPEED_LIMITS(3)),int2str(c.SPEED_LIMITS(4)),int2str(c.SPEED_LIMITS(5)));
         
         
-        stringtoprint = strcat('Battery Charge (Starting with {',(int2str(c.INITIAL_BATTERY_CHARGE/(10^6))),'MW} of charge)');
+        stringtoprint = strcat('Power{',(int2str(getCAPACITY())),'}');
         title(ax3,stringtoprint)
         xlabel(ax3,time_unit)
         ylabel(ax3,'Charge')
@@ -191,10 +208,40 @@ global FILE
 f = FILE;
 end
 
+%% Function Definitions: Battery Stuff
+
+function [] = setBATTERY_PARAMETERS(capacity, qty, weight)
+global QTY
+global CAPACITY
+global WEIGHT
+QTY = qty;
+CAPACITY = capacity;
+WEIGHT = weight;
+end
+
+function [qty] = getQTY()
+global QTY
+qty = QTY;
+end
+
+function [capacity] = getCAPACITY()
+global CAPACITY
+capacity = CAPACITY;
+end
+
+function [weight] = getWEIGHT()
+global WEIGHT
+weight = WEIGHT;
+end
+
 %% Function Definitions: Conversions and Handlers
 
 function [hr] = s_to_hr(s)
 hr = s/3600;
+end
+
+function [WH] = joules_to_WH(J)
+WH = J/3600;
 end
 
 function [time] = dist_speed_to_time(distance, speed)
@@ -224,7 +271,7 @@ end
 
 function m = m_v()
 %get_gradient: get the road gradient from distance and elevation
-m = c.BATTERY_WEIGHT*(c.INITIAL_BATTERY_CHARGE/c.BATTERY_CAPACITY) + c.M_veh;
+m = getWEIGHT()*getQTY() + c.M_veh;
 end
 
 %% Function Definitions: FBD Model
@@ -264,9 +311,11 @@ import constants.*;
 TL_wheel = inches_to_cm(c.RADIUS_OF_WHEEL)*F_trac;
 end
 
-function [power] = get_Power(displacement, t, F_trac)
+function [W] = get_Work(delta_dist, delta_elev, F_trac)
 import constants.*;
-power = (displacement/t)*F_trac;
+F = F_trac;
+d = sqrt(delta_dist*delta_dist + delta_elev*delta_elev);
+W = F*d;
 end
 
 function [TL_motor] = gear_transform_TL(gear, TL_wheel)

@@ -16,11 +16,8 @@ classdef c
         
         TRANSMISSION_EFFICIENCY = 1;
         MOTOR_OUTPUT_EFFICIENCY = 1;
+
         
-        INITIAL_BATTERY_CHARGE = 5*10^6; % initial battery charge
-        BATTERY_WEIGHT = 400;
-        BATTERY_CAPACITY = 5*10^6;
-        
-        REGEN_BRAKING_EFFICIENCY = 0; %some random figure i found online
+        REGEN_BRAKING_EFFICIENCY = 1; %some random figure i found online
     end
 end
