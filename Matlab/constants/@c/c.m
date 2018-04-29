@@ -18,6 +18,6 @@ classdef c
         MOTOR_OUTPUT_EFFICIENCY = 0.85; % Worst case scenerio, lower bound (Nissan Leaf)
 
         
-        REGEN_BRAKING_EFFICIENCY = 0; %some random figure i found online
+        REGEN_BRAKING_EFFICIENCY = 0.65; %some random figure i found online
     end
 end

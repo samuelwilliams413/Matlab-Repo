@@ -25,19 +25,9 @@ M_con = 0;
 M_bat = M_cell;
 
 %% POWER REQUIREMENTS
-CAP         = 4.5e+06;
-E           = 3600*CAP;
-E           = 4.5e+06 + 1.1e+06 + 2e+06;
-CAP         = (E/3600)/1000; %kwh
-
-
-CAP         = 28e+03;	
-E           = 3600*CAP;
-CAP         = E/3600;
-
 SAFETY_FACTOR = 1.5;
 
-
+E = 0;
 
 capacity    = E*SAFETY_FACTOR
 qty         = capacity/E_bat

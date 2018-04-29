@@ -158,7 +158,7 @@ for trial = 1:1:trials             %for all speed limits
                 t_old = t;
             end
             
-            dx = u*dt + (1/2)*a*dt*dt;
+            ds = u*dt + (1/2)*a*dt*dt;
             u = v;
             
             time_a_c(trial,g,inc) = t;
@@ -166,9 +166,9 @@ for trial = 1:1:trials             %for all speed limits
             velocity_c(trial,g,inc) = v;
             
             if (inc == 1)
-                displacement_c(trial,g,inc) = dx;
+                displacement_c(trial,g,inc) = ds;
             else
-                displacement_c(trial,g,inc) = dx + displacement_c(trial,g,(inc-1));
+                displacement_c(trial,g,inc) = ds + displacement_c(trial,g,(inc-1));
             end
             
             m = 0;
@@ -183,20 +183,19 @@ for trial = 1:1:trials             %for all speed limits
             [TL_motor] = gear_transform_TL(gear, TL_wheel);
             TM_c(trial,g,inc) = TL_motor;
             
-            [W_J] = dx*F_trac;
-            [W_WH] = joules_to_WH(W_J);
-            
             
             %% DOESN'T CHANGE
-            E_M = W_J;
-            energy_c(trial,g,inc) = dx;
             
-            if (E_M > 0)
-                bat_out(trial,g,inc) = E_M*c.MOTOR_OUTPUT_EFFICIENCY;
+            %get work
+            [W] = ds*F_trac;
+            P = W/dt;
+            
+            if (P > 0)
+                bat_out(trial,g,inc) = P/c.MOTOR_OUTPUT_EFFICIENCY;
                 bat_in(trial,g,inc) = 0;
             else
                 bat_out(trial,g,inc) = 0;
-                bat_in(trial,g,inc) = (-E_M)*c.REGEN_BRAKING_EFFICIENCY;
+                bat_in(trial,g,inc) = (-P)*c.REGEN_BRAKING_EFFICIENCY;
             end
             
             
@@ -223,6 +222,7 @@ end
 L
 resolution          = resolution
 extra_charge_needed = min(min(min(bat_t(:,:,:))))
+extra_charge_needed = min(min(min(bat_t(:,:,:))))/1000/3600
 capacity            = getCAPACITY()
 qty                 = getQTY()
 weight              = getWEIGHT()
@@ -272,7 +272,7 @@ y = bat_t(1,1,:)/3600/1000;
 plot(time(:), y(:))
 xlabel(ax,time_unit)
 ylabel(ax,'Charge (kWH)')
-axis([0 6000 0 50])
+%axis([0 6000 0 50])
 
 ax = subplot(x_plots,y_plots,count);
 title(ax,'Time vs Acceleration');

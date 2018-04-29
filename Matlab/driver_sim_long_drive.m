@@ -154,23 +154,20 @@ for trial = 1:1:trials             %for all speed limits
             [TL_motor] = gear_transform_TL(gear, TL_wheel);
             TM_c(trial,g,inc) = TL_motor;
             
-            [W_J] = ds*F_trac;
-            [W_WH] = joules_to_WH(W_J);
-            
             
             %% DOESN'T CHANGE
-            E_M = W_J/c.MOTOR_OUTPUT_EFFICIENCY;
             
-            energy_c(trial,g,inc) = E_M;
+            %get work
+            [W] = ds*F_trac;
+            P = W/dt;
             
-            if (E_M > 0)
-                bat_o(trial,g,inc) = E_M;
+            if (P > 0)
+                bat_o(trial,g,inc) = P/c.MOTOR_OUTPUT_EFFICIENCY;
                 bat_i(trial,g,inc) = 0;
             else
                 bat_o(trial,g,inc) = 0;
-                bat_i(trial,g,inc) = (-E_M)*c.REGEN_BRAKING_EFFICIENCY;
+                bat_i(trial,g,inc) = (-P)*c.REGEN_BRAKING_EFFICIENCY;
             end
-            
             
             if(inc ~= 1)
                 bat_t(trial,g,inc) = bat_t(trial,g,inc-1) - bat_o(trial,g,inc) + bat_i(trial,g,inc);
@@ -179,8 +176,6 @@ for trial = 1:1:trials             %for all speed limits
             if(inc == 1)
                 bat_t(trial,g,inc) = bat_t(trial,g,inc) + getCAPACITY();
             end
-            
-            t_old = trial;
         end
     end
 end
@@ -202,7 +197,7 @@ qty                 = getQTY()
 weight              = getWEIGHT()
 
 close all
-figure('Name','Simulation of UQ-Kingbeach-Maleny-UQ Drive (228 km)');
+figure('Name',strcat('Simulation of UQ-Kingbeach-Maleny-UQ Drive (228 km)',int2str(resolution)));
 
 y_plots = 2;
 x_plots = 3;
@@ -224,7 +219,7 @@ title(ax,'Time vs Displacement');
 hold on
 count = count +1;
 time = t_cache(:);
-y = d_a_c(:);
+y = distance_cache(:);
 plot(time(:), y(:))
 xlabel(ax,time_unit)
 ylabel(ax,'Distance (m)')
@@ -259,7 +254,7 @@ y = bat_t(:)/3600/1000;
 plot(time(:), y(:))
 xlabel(ax,time_unit)
 ylabel(ax,'Charge (kWH)')
-axis([0 14000 0 50])
+%axis([0 14000 0 50])
 
 ax = subplot(x_plots,y_plots,count);
 title(ax,'Time vs Acceleration');
