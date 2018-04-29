@@ -51,15 +51,7 @@ N_modules   = 7104;        	%48 modules and each module contains four battery ce
 
 M_cell = M_total/N_modules
 E_Cell = E_total/N_modules
-E_bat = E_Cell*3600*BATTERY_EFFICIENCY
+E_Bat = E_total/N_modules
 
-M_con = 0
-M_bat = M_cell
 
-%% POWER REQUIREMENTS
-CAP         = 21.381*10^3	
-E           = 3600*CAP
-capacity    = E
-qty         = E/E_bat
-mass        = M_bat*qty + M_con
 end
