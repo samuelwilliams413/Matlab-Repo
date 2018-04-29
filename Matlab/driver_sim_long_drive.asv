@@ -88,7 +88,7 @@ end
 for i = 1:1:10
 vc = smooth(vc);
 end
-vc = [vc,transpose(d_int)];
+vc = [vc,transd_int];
 
 
 
@@ -126,7 +126,7 @@ bat_t                   = zeros(trials,gears,length(d_int));
 f_store                 = zeros(length(d_int),4);
 v_store                 = zeros(length(d_int),1);
 u_store                 = zeros(length(d_int),1);
-
+clear
 [capacity, qty, weight] = batteryCalculations()
 setBATTERY_PARAMETERS(capacity, qty, weight)
 %% velocity smoothing
