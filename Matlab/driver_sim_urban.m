@@ -10,11 +10,24 @@ import constants.*;
 
 setFILE() % unless the folder 'constants' (and its subfolders) is added this step will fail
 file = getFILE();
-s_v_f   = file(:,1);
-e_v_f  	= file(:,2);
-a_f   	= file(:,3);
-d_f 	= file(:,4);
+
+s_v_f   = transpose(file(:,1));
+e_v_f  	= transpose(file(:,2));
+a_f   	= transpose(file(:,3));
+d_f 	= transpose(file(:,4));
+
+s_v_f = [s_v_f,s_v_f]
+e_v_f = [e_v_f,e_v_f]
+a_f = [a_f, a_f]
+d_f = [d_f, d_f]
+s_v_f = [s_v_f,s_v_f]
+e_v_f = [e_v_f,e_v_f]
+a_f = [a_f, a_f]
+d_f = [d_f, d_f]
+
 L = sum(d_f);
+
+
 
 d_i(1) = d_f(1);
 for segment = 2:1:length(d_f)
@@ -300,7 +313,7 @@ ax = subplot(x_plots,y_plots,count);
 title(ax,'displacement');
 hold on
 count = count +1;
-time = time_a_c(1,1,:);
+time = time_a_c(1,1,:)/3600;
 y = displacement_c(1,1,:);
 plot(time(:), y(:))
 
@@ -321,12 +334,12 @@ y = a_c(:);
 plot(time(:), y(:))
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'F_trac');
+title(ax,'bat_t');
 hold on
 count = count +1;
 time = time_a_c(1,1,:);
 
-y = force_trac_c(1,1,:);
+y = (bat_t(1,1,:))/1000/3600;
 plot(time(:), y(:))
 
 %% Function Definitions: File Manipulation

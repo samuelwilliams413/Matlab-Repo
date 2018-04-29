@@ -18,6 +18,6 @@ classdef c
         MOTOR_OUTPUT_EFFICIENCY = 1;
 
         
-        REGEN_BRAKING_EFFICIENCY = 1; %some random figure i found online
+        REGEN_BRAKING_EFFICIENCY = 0; %some random figure i found online
     end
 end

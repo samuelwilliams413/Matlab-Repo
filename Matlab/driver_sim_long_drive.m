@@ -3,7 +3,7 @@ clc
 clear
 close all
 
-PLOTTING = true;
+PLOTTING = false;
 
 import constants.*;
 
@@ -12,18 +12,31 @@ setFILE() % unless the folder 'constants' (and its subfolders) is added this ste
 file = getFILE();
 d = file(:,1);
 e = file(:,2);
+LATITUDES_f = file(:,3);
+LONGITUDES_f = file(:,4);
 L = max(d);
 
-resolution = 10; % in meters
+file_gov = csvread("D:\Google Drive\Part B\Working Documents\Code\Matlab-Repo\Matlab\SEQ_roads_lat_long_scraped.csv",1,0);
+LATITUDES_gov = file_gov(:,2);
+LONGITUDES_gov = file_gov(:,3);
+LIMITS_gov = file_gov(:,1);
+
+resolution = 1000; % in meters
 
 distance_interpolated = 0:resolution:L; % perform a calculation every 1m for the duration of the journey
 elevation_interpolated = interp1(d,e,distance_interpolated);
+LATITUDES = interp1(d,LATITUDES_f,distance_interpolated);
+LONGITUDES = interp1(d,LONGITUDES_f,distance_interpolated);
+
+
 
 %s = 10:10:110; %for all speed limits [10-110km/hr]
 trials = length(c.SPEED_LIMITS);
 gears = length(c.GEAR_RATIOS);
 
 gradient_cache          = zeros(trials,gears,length(distance_interpolated));
+velocity_cache          = zeros(trials,gears,length(distance_interpolated));
+acceleration_cache          = zeros(trials,gears,length(distance_interpolated));
 F_trac_cache            = zeros(trials,gears,length(distance_interpolated));
 TL_cache                = zeros(trials,gears,length(distance_interpolated));
 TL_MOTOR_cache          = zeros(trials,gears,length(distance_interpolated));
@@ -45,11 +58,11 @@ resolution_in_meters = resolution
 speeds_to_be_tested = c.SPEED_LIMITS
 gears_to_be_tested = c.GEAR_RATIOS
 
-for t = 1:1:trials             %for all speed limits
+for t = trials:1:trials             %for all speed limits
     speed_limit = kmhr_to_ms(c.SPEED_LIMITS(t));
     speed_limit = kmhr_to_ms(50);
     
-    for g = 1:1:gears   %for all gear ratios
+    for g = gears:1:gears   %for all gear ratios
         clc
         PROGRESS = [t,g]
         gear = c.GEAR_RATIOS(g);
@@ -63,28 +76,43 @@ for t = 1:1:trials             %for all speed limits
         power = 0;
         time_inc_old = 0;
         for inc = 1:1:length(distance_interpolated)          %every 10 m
-            [dist_inc, elev_inc] = get_distance_and_elevation(distance_interpolated,elevation_interpolated, inc);
+            [dist_inc, elev_inc, lat, long] = get_distance_and_elevation(distance_interpolated,elevation_interpolated,LATITUDES,LONGITUDES, inc);
             time_inc = dist_speed_to_time(dist_inc, speed_limit);
             time_accumulator_cache(t,g,inc) = time_accumulator_cache(t,g,inc) + time_inc;
+            
+            velocity = speed_limit;
+            acceleration = 0;
+            velocity_cache(t,g,inc) = velocity;
             
             if (inc == 1)
                 delta_dist = 0;
                 delta_elev = 0;
                 delta_time = time_inc;
+                delta_v = velocity;
+                velocity_old = velocity;
             else
-                [dist_inc_old, elev_inc_old] = get_distance_and_elevation(distance_interpolated,elevation_interpolated, (inc-1));
+                [dist_inc_old, elev_inc_old, lat_old, long_old] = get_distance_and_elevation(distance_interpolated,elevation_interpolated,LATITUDES,LONGITUDES, (inc-1));
                 delta_dist = dist_inc - dist_inc_old;
                 delta_elev = elev_inc - elev_inc_old;
                 delta_time = time_inc - time_inc_old;
+                delta_v = velocity - velocity_old;
+                velocity_old = velocity;
             end
+            
+            acceleration = delta_v/delta_time;
+            acceleration_cache(t,g,inc) = acceleration;
+            
+            %%
             
             gradient = get_gradient(delta_dist, delta_elev);
             gradient_cache(t,g,inc) = gradient;
-            
+            velocity = speed_limit;
+            acceleration = 0;
+
             % NO ACCELERATION CONSTANT SPEED
             % NO ACCELERATION CONSTANT SPEED
             % NO ACCELERATION CONSTANT SPEED
-            [F_trac] = get_F_trac(gradient, speed_limit, 0);
+            [F_trac] = get_F_trac(gradient, velocity, acceleration);
             F_trac_cache(t,g,inc) = F_trac;
             
             [TL_wheel] = get_TL_on_Wheels(F_trac);
@@ -197,6 +225,47 @@ if(PLOTTING == true)
     end
 end
 
+
+close all
+figure
+y_plots = 2;
+x_plots = y_plots;
+count = 1;
+
+ax = subplot(x_plots,y_plots,count);
+title(ax,'elevation_interpolated');
+hold on
+count = count +1;
+time = time_accumulator_cache(1,1,:)/3600;
+y = elevation_interpolated(:);
+plot(time(:), y(:))
+
+ax = subplot(x_plots,y_plots,count);
+title(ax,'velocity');
+hold on
+count = count +1;
+time = time_accumulator_cache(1,1,:);
+y = velocity_cache(1,1,:);
+plot(time(:), y(:))
+
+ax = subplot(x_plots,y_plots,count);
+title(ax,'acceleration');
+hold on
+count = count +1;
+time = time_accumulator_cache(1,1,:);
+y = acceleration_cache(1,1,:);
+plot(time(:), y(:))
+
+ax = subplot(x_plots,y_plots,count);
+title(ax,'battery_charge');
+hold on
+count = count +1;
+time = time_accumulator_cache(1,1,:);
+
+y = (battery_charge(1,1,:))/1000/3600;
+plot(time(:), y(:))
+
+
 %% Function Definitions: File Manipulation
 
 function [] = setFILE()
@@ -246,6 +315,8 @@ WH = J/3600;
 end
 
 function [time] = dist_speed_to_time(distance, speed)
+distance = distance
+speed = speed
 time = distance/speed;
 end
 
@@ -257,11 +328,13 @@ function [cm] = inches_to_cm(inches)
 cm = 2.54*inches;
 end
 
-function [d, e] = get_distance_and_elevation(distance_interpolated,elevation_interpolated, index)
+function [dist_inc, elev_inc, lat, long] = get_distance_and_elevation(distance_interpolated,elevation_interpolated,LATITUDES,LONGITUDES, index)
 %get_distance_and_elevation: get distance and elevation
 import constants.*;
-d = distance_interpolated(index);
-e = elevation_interpolated(index);
+dist_inc = distance_interpolated(index);
+elev_inc = elevation_interpolated(index);
+lat = LATITUDES(index);
+long = LONGITUDES(index);
 end
 
 function [gradient] = get_gradient(delta_dist, delta_elev)
@@ -273,6 +346,17 @@ end
 function m = m_v()
 %get_gradient: get the road gradient from distance and elevation
 m = getWEIGHT()*getQTY() + c.M_veh;
+end
+
+%% Speed Limits
+
+function [minimum_distance, index] = getIndex(LATITUDES,LONGITUDES,lat, long)
+
+d_lat = abs(LATITUDES - lat).^2;
+d_lon = abs(LONGITUDES - long).^2;
+
+[minimum_distance, index] = min(d_lat + d_lon);
+
 end
 
 %% Function Definitions: FBD Model
