@@ -16,14 +16,14 @@ e_v_f  	= transpose(file(:,2));
 a_f   	= transpose(file(:,3));
 d_f 	= transpose(file(:,4));
 
-s_v_f = [s_v_f,s_v_f]
-e_v_f = [e_v_f,e_v_f]
-a_f = [a_f, a_f]
-d_f = [d_f, d_f]
-s_v_f = [s_v_f,s_v_f]
-e_v_f = [e_v_f,e_v_f]
-a_f = [a_f, a_f]
-d_f = [d_f, d_f]
+s_v_f = [s_v_f,s_v_f];
+e_v_f = [e_v_f,e_v_f];
+a_f = [a_f, a_f];
+d_f = [d_f, d_f];
+s_v_f = [s_v_f,s_v_f];
+e_v_f = [e_v_f,e_v_f];
+a_f = [a_f, a_f];
+d_f = [d_f, d_f];
 
 L = sum(d_f);
 
@@ -84,7 +84,7 @@ end
 for i = 1:time_incriment:length(accl_i)
     
     if ((i + d_f(1)/resolution) > length(e_v_i))
-        a_c(i) = 0
+        a_c(i) = 0;
     else
         a_c(i) = accl_i(i + d_f(1)/resolution);
     end
@@ -227,120 +227,51 @@ capacity            = getCAPACITY()
 qty                 = getQTY()
 weight              = getWEIGHT()
 
-if(PLOTTING == true)
-    time_a_c = s_to_hr(time_a_c);
-    time_unit = 'time(hours)';
-    figure
-    number_of_plots = 3;
-    count = 1;
-    grid_place = [1,5,9,2,6,10,3,7,11,4,8,12];
-    
-    for g = 1:1:gears
-        gear = c.GEAR_RATIOS(g);
-        ax1 = subplot(number_of_plots,gears,grid_place(count));
-        count = count + 1;
-        hold on
-        
-        for trial = 1:1:trials
-            time_a_c(trial,g,1) = 0;
-            
-            time = time_a_c(trial,g,:);
-            y = accl_i(:);
-            plot(time(:), y(:))
-        end
-        
-        ax2 = subplot(number_of_plots,gears,grid_place(count));
-        count = count + 1;
-        hold on
-        
-        for trial = 1:1:trials
-            time_a_c(trial,g,1) = 0;
-            
-            time = time_a_c(trial,g,:);
-            %y = s_v_i(t,g,:);
-            y = velocity_c(trial,g,:);
-            plot(time(:), y(:))
-        end
-        
-        ax3 = subplot(number_of_plots,gears,grid_place(count));
-        count = count + 1;
-        hold on
-        
-        for trial = 1:1:trials
-            time_a_c(trial,g,1) = 0;
-            
-            time = time_a_c(trial,g,:);
-            y = (1/1000)*bat_t(trial,g,:)/3600;
-            %y = battery_charge(t,g,:);
-            
-            y = displacement_c(trial,g,:);
-            y = s_v_i(:);
-            time = d_i(:);
-            y = e_v_f(:);
-            
-            plot(time(:), y(:))
-        end
-        
-        stringtoprint = strcat('Elevation','[Gear Ratio: ',int2str(gear),']');
-        title(ax1,stringtoprint)
-        xlabel(ax1,time_unit)
-        ylabel(ax1,'Elevation')
-        legend(ax1,int2str(c.SPEED_LIMITS(1)),int2str(c.SPEED_LIMITS(2)),int2str(c.SPEED_LIMITS(3)),int2str(c.SPEED_LIMITS(4)),int2str(c.SPEED_LIMITS(5)));
-        
-        
-        title(ax2,'Energy')
-        xlabel(ax2,time_unit)
-        ylabel(ax2,'Torque')
-        legend(ax2,int2str(c.SPEED_LIMITS(1)),int2str(c.SPEED_LIMITS(2)),int2str(c.SPEED_LIMITS(3)),int2str(c.SPEED_LIMITS(4)),int2str(c.SPEED_LIMITS(5)));
-        
-        
-        stringtoprint = strcat('Power{',(int2str(getCAPACITY())),'}');
-        title(ax3,stringtoprint)
-        xlabel(ax3,time_unit)
-        ylabel(ax3,'Charge')
-        legend(ax3,int2str(c.SPEED_LIMITS(1)),int2str(c.SPEED_LIMITS(2)),int2str(c.SPEED_LIMITS(3)),int2str(c.SPEED_LIMITS(4)),int2str(c.SPEED_LIMITS(5)));
-        
-    end
-end
 
 close all
 figure
 y_plots = 2;
-x_plots = y_plots;
-count = 1;
+x_plots = 3;
+count = 2;
 
+
+time = time_a_c(1,1,:);
 ax = subplot(x_plots,y_plots,count);
-title(ax,'displacement');
+title(ax,'t vs s (m)');
 hold on
 count = count +1;
-time = time_a_c(1,1,:)/3600;
 y = displacement_c(1,1,:);
 plot(time(:), y(:))
-
 ax = subplot(x_plots,y_plots,count);
-title(ax,'velocity');
+
+title(ax,'t vs F_{trac}');
 hold on
 count = count +1;
-time = time_a_c(1,1,:);
-y = velocity_c(1,1,:);
+y = force_trac_c(1,1,:);
 plot(time(:), y(:))
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'acceleration');
+title(ax,'t vs v (kph)');
 hold on
 count = count +1;
-time = time_a_c(1,1,:);
-y = a_c(:);
+y = 3.6*velocity_c(1,1,:);
 plot(time(:), y(:))
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'bat_t');
+title(ax,'t vs Q (kWH)');
 hold on
 count = count +1;
-time = time_a_c(1,1,:);
-
-y = (bat_t(1,1,:))/1000/3600;
+y = bat_t(1,1,:)/3600/1000;
 plot(time(:), y(:))
+
+ax = subplot(x_plots,y_plots,count);
+title(ax,'t vs a (m/s)');
+hold on
+count = count +1;
+y = acceleration_c(1,1,:);
+plot(time(:), y(:))
+
+
 
 %% Function Definitions: File Manipulation
 

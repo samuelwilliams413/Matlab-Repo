@@ -23,246 +23,235 @@ LIMITS_gov = file_gov(:,1);
 
 resolution = 1000; % in meters
 
-distance_interpolated = 0:resolution:L; % perform a calculation every 1m for the duration of the journey
-elevation_interpolated = interp1(d,e,distance_interpolated);
-LATITUDES = interp1(d,LATITUDES_f,distance_interpolated);
-LONGITUDES = interp1(d,LONGITUDES_f,distance_interpolated);
+d_int = 0:resolution:L; % perform a calculation every 1m for the duration of the journey
+e_int = interp1(d,e,d_int);
+LATITUDES = interp1(d,LATITUDES_f,d_int);
+LONGITUDES = interp1(d,LONGITUDES_f,d_int);
 
 
 
 %s = 10:10:110; %for all speed limits [10-110km/hr]
-trials = length(c.SPEED_LIMITS);
-gears = length(c.GEAR_RATIOS);
+trials = 1;
+gears = 1;
 
-gradient_cache          = zeros(trials,gears,length(distance_interpolated));
-velocity_cache          = zeros(trials,gears,length(distance_interpolated));
-acceleration_cache          = zeros(trials,gears,length(distance_interpolated));
-F_trac_cache            = zeros(trials,gears,length(distance_interpolated));
-TL_cache                = zeros(trials,gears,length(distance_interpolated));
-TL_MOTOR_cache          = zeros(trials,gears,length(distance_interpolated));
-power_cache             = zeros(trials,gears,length(distance_interpolated));
-work_cache              = zeros(trials,gears,length(distance_interpolated));
-power_accumulator_cache = zeros(trials,gears,length(distance_interpolated));
-time_accumulator_cache  = zeros(trials,gears,length(distance_interpolated));
-energy_cache            = zeros(trials,gears,length(distance_interpolated));
-energy_accumulator_cache= zeros(trials,gears,length(distance_interpolated));
-battery_out             = zeros(trials,gears,length(distance_interpolated));
-battery_in              = zeros(trials,gears,length(distance_interpolated));
-battery_charge          = zeros(trials,gears,length(distance_interpolated));
+distance_cache          = zeros(trials,gears,length(d_int));
+d_a_c                   = zeros(trials,gears,length(d_int));
+gradient_cache         = zeros(trials,gears,length(d_int));
+vc                      = zeros(trials,gears,length(d_int));
+velocity_cache          = zeros(trials,gears,length(d_int));
+acceleration_cache    	= zeros(trials,gears,length(d_int));
+F_trac_cache            = zeros(trials,gears,length(d_int));
+TL_cache                = zeros(trials,gears,length(d_int));
+TL_MOTOR_cache          = zeros(trials,gears,length(d_int));
+power_cache             = zeros(trials,gears,length(d_int));
+work_cache              = zeros(trials,gears,length(d_int));
+power_accumulator_cache = zeros(trials,gears,length(d_int));
+t_cache                 = zeros(trials,gears,length(d_int));
+energy_cache            = zeros(trials,gears,length(d_int));
+e_a_c                   = zeros(trials,gears,length(d_int));
+bat_o                   = zeros(trials,gears,length(d_int));
+bat_i                   = zeros(trials,gears,length(d_int));
+bat_t                   = zeros(trials,gears,length(d_int));
 
 [capacity, qty, weight] = batteryCalculations()
 setBATTERY_PARAMETERS(capacity, qty, weight)
+%% velocity smoothing
+building_speed_limits = true
+for trial = 1:1:trials             %for all speed limits
+    for g = 1:1:gears   %for all gear ratios
+        time_inc_old = 0;
+        for inc = 1:1:length(d_int)          %every 10 m
+            [d_i, e_i, lat, long] = get_DELL(d_int,e_int,LATITUDES,LONGITUDES, inc);
+            [minimum_distance, index] = getIndex(LATITUDES_gov,LONGITUDES_gov,lat, long);
+            v = LIMITS_gov(index);
+            vc(trial,g,inc) = kmhr_to_ms(v);
+        end
+    end
+end
+
+for s = 1:1:1
+    smoothing = s
+    vc = smooth(vc);
+end
 
 %% Working
 resolution_in_meters = resolution
 speeds_to_be_tested = c.SPEED_LIMITS
 gears_to_be_tested = c.GEAR_RATIOS
 
-for t = trials:1:trials             %for all speed limits
-    speed_limit = kmhr_to_ms(c.SPEED_LIMITS(t));
+for trial = 1:1:trials             %for all speed limits
+    speed_limit = kmhr_to_ms(c.SPEED_LIMITS(trial));
     speed_limit = kmhr_to_ms(50);
     
-    for g = gears:1:gears   %for all gear ratios
+    for g = 1:1:gears   %for all gear ratios
         clc
-        PROGRESS = [t,g]
+        PROGRESS = [trial,g]
         gear = c.GEAR_RATIOS(g);
         total_time = 0;
         total_power = 0;
-        acceleration = 0;
+        a = 0;
         distance_now = 0;
         elevation_now = 0;
         gradient_now = 0;
         F_trac=0;
         power = 0;
         time_inc_old = 0;
-        for inc = 1:1:length(distance_interpolated)          %every 10 m
-            [dist_inc, elev_inc, lat, long] = get_distance_and_elevation(distance_interpolated,elevation_interpolated,LATITUDES,LONGITUDES, inc);
-            time_inc = dist_speed_to_time(dist_inc, speed_limit);
-            time_accumulator_cache(t,g,inc) = time_accumulator_cache(t,g,inc) + time_inc;
-            
-            velocity = speed_limit;
-            acceleration = 0;
-            velocity_cache(t,g,inc) = velocity;
+        for inc = 1:1:length(d_int)          %every 10 m
+            [d_i, e_i, lat, long] = get_DELL(d_int,e_int,LATITUDES,LONGITUDES, inc);
+            [minimum_distance, index] = getIndex(LATITUDES_gov,LONGITUDES_gov,lat, long);
+            v = vc(inc);
             
             if (inc == 1)
-                delta_dist = 0;
-                delta_elev = 0;
-                delta_time = time_inc;
-                delta_v = velocity;
-                velocity_old = velocity;
+                dd = d_i;
+                de = e_i;
+                dv = v;
+                u = v;
+                
+                ds = sqrt(dd^2 + de^2);
+                t_i = dist_speed_to_time(ds, u);
+                dt = t_i;
+                
+                d_o = d_i;
+                e_o = e_i;
+                t_cache(trial,g,inc) = dt;
+                d_a_c(trial,g,inc) = dd;
             else
-                [dist_inc_old, elev_inc_old, lat_old, long_old] = get_distance_and_elevation(distance_interpolated,elevation_interpolated,LATITUDES,LONGITUDES, (inc-1));
-                delta_dist = dist_inc - dist_inc_old;
-                delta_elev = elev_inc - elev_inc_old;
-                delta_time = time_inc - time_inc_old;
-                delta_v = velocity - velocity_old;
-                velocity_old = velocity;
+                dd = d_i - d_o;
+                de = e_i - e_o;
+                dv = v - u;
+                
+                ds = sqrt(dd^2 + de^2);
+                t_i = dist_speed_to_time(ds, u);
+                dt = t_i;
+                
+                u = v;
+                
+                d_o = d_i;
+                e_o = e_i;
+                t_cache(trial,g,inc) = dt + t_cache(trial,g,(inc - 1));
+                d_a_c(trial,g,inc) = dd + d_a_c(trial,g,(inc - 1));
             end
             
-            acceleration = delta_v/delta_time;
-            acceleration_cache(t,g,inc) = acceleration;
+            a = dv/dt;
+            
+            distance_cache(trial,g,inc) = ds;
+            acceleration_cache(trial,g,inc) = a;
+            velocity_cache(trial,g,inc) = v;
+            
+            
             
             %%
             
-            gradient = get_gradient(delta_dist, delta_elev);
-            gradient_cache(t,g,inc) = gradient;
-            velocity = speed_limit;
-            acceleration = 0;
-
-            % NO ACCELERATION CONSTANT SPEED
-            % NO ACCELERATION CONSTANT SPEED
-            % NO ACCELERATION CONSTANT SPEED
-            [F_trac] = get_F_trac(gradient, velocity, acceleration);
-            F_trac_cache(t,g,inc) = F_trac;
+            m = get_gradient(dd, de);
+            gradient_c(trial,g,inc) = m;
+            
+            [F_trac] = get_F_trac(m, v, a);
+            force_trac_c(trial,g,inc) = F_trac;
             
             [TL_wheel] = get_TL_on_Wheels(F_trac);
-            TL_cache(t,g,inc) = TL_wheel;
+            TL_c(trial,g,inc) = TL_wheel;
             
             [TL_motor] = gear_transform_TL(gear, TL_wheel);
-            TL_MOTOR_cache(t,g,inc) = TL_motor;
+            TM_c(trial,g,inc) = TL_motor;
             
-            [work_joules] = get_Work(delta_dist, delta_elev, F_trac);
-            [work_WH] = joules_to_WH(work_joules);
+            [W_J] = ds*F_trac;
+            [W_WH] = joules_to_WH(W_J);
             
-            energy_motor = work_joules;
-            energy_cache(t,g,inc) = energy_motor;
             
-            if (energy_motor > 0)
-                battery_out(t,g,inc) = energy_motor*c.MOTOR_OUTPUT_EFFICIENCY;
-                battery_in(t,g,inc) = 0;
+            %% DOESN'T CHANGE
+            E_M = W_J;
+            energy_c(trial,g,inc) = ds;
+            
+            if (E_M > 0)
+                bat_o(trial,g,inc) = E_M*c.MOTOR_OUTPUT_EFFICIENCY;
+                bat_i(trial,g,inc) = 0;
             else
-                battery_out(t,g,inc) = 0;
-                battery_in(t,g,inc) = (-energy_motor)*c.REGEN_BRAKING_EFFICIENCY;
+                bat_o(trial,g,inc) = 0;
+                bat_i(trial,g,inc) = (-E_M)*c.REGEN_BRAKING_EFFICIENCY;
             end
             
             
             if(inc ~= 1)
-                battery_charge(t,g,inc) = battery_charge(t,g,inc-1) - battery_out(t,g,inc) + battery_in(t,g,inc);
+                bat_t(trial,g,inc) = bat_t(trial,g,inc-1) - bat_o(trial,g,inc) + bat_i(trial,g,inc);
             end
             
             if(inc == 1)
-                battery_charge(t,g,inc) = battery_charge(t,g,inc) + getCAPACITY();
+                bat_t(trial,g,inc) = bat_t(trial,g,inc) + getCAPACITY();
             end
             
-            time_inc_old = time_inc;
+            t_old = trial;
         end
     end
 end
-
+d_int = d_int(3:end);
+e_int = e_int(3:end);
+t_cache = t_cache(3:end);
+distance_cache = distance_cache(3:end);
+d_a_c = d_a_c(3:end);
+velocity_cache = velocity_cache(3:end);
+acceleration_cache = acceleration_cache(3:end);
+force_trac_c = force_trac_c(3:end);
+bat_t = bat_t(3:end);
 
 resolution          = resolution
-extra_charge_needed = min(min(min(battery_charge(:,:,:))))
+extra_charge_needed = min(min(min(bat_t(:,:,:))))
+extra_charge_needed = min(min(min(bat_t(:,:,:))))/3600/1000
 capacity            = getCAPACITY()
 qty                 = getQTY()
 weight              = getWEIGHT()
 
-if(PLOTTING == true)
-    time_accumulator_cache = s_to_hr(time_accumulator_cache);
-    time_unit = 'time(hours)';
-    figure
-    number_of_plots = 3;
-    count = 1;
-    grid_place = [1,5,9,2,6,10,3,7,11,4,8,12];
-    
-    for g = 1:1:gears
-        gear = c.GEAR_RATIOS(g);
-        ax1 = subplot(number_of_plots,gears,grid_place(count));
-        count = count + 1;
-        hold on
-        
-        for t = 1:1:trials
-            time_accumulator_cache(t,g,1) = 0;
-            
-            time = time_accumulator_cache(t,g,:);
-            y = elevation_interpolated(:);
-            plot(time(:), y(:))
-        end
-        
-        ax2 = subplot(number_of_plots,gears,grid_place(count));
-        count = count + 1;
-        hold on
-        
-        for t = 1:1:trials
-            time_accumulator_cache(t,g,1) = 0;
-            
-            time = time_accumulator_cache(t,g,:);
-            y = energy_cache(t,g,:);
-            plot(time(:), y(:))
-        end
-        
-        ax3 = subplot(number_of_plots,gears,grid_place(count));
-        count = count + 1;
-        hold on
-        
-        for t = 1:1:trials
-            time_accumulator_cache(t,g,1) = 0;
-            
-            time = time_accumulator_cache(t,g,:);
-            y = (1/1000)*battery_charge(t,g,:)/3600;
-            %y = battery_charge(t,g,:);
-            plot(time(:), y(:))
-        end
-        
-        stringtoprint = strcat('Elevation','[Gear Ratio: ',int2str(gear),']');
-        title(ax1,stringtoprint)
-        xlabel(ax1,time_unit)
-        ylabel(ax1,'Elevation')
-        legend(ax1,int2str(c.SPEED_LIMITS(1)),int2str(c.SPEED_LIMITS(2)),int2str(c.SPEED_LIMITS(3)),int2str(c.SPEED_LIMITS(4)),int2str(c.SPEED_LIMITS(5)));
-        
-        
-        title(ax2,'Energy')
-        xlabel(ax2,time_unit)
-        ylabel(ax2,'Torque')
-        legend(ax2,int2str(c.SPEED_LIMITS(1)),int2str(c.SPEED_LIMITS(2)),int2str(c.SPEED_LIMITS(3)),int2str(c.SPEED_LIMITS(4)),int2str(c.SPEED_LIMITS(5)));
-        
-        
-        stringtoprint = strcat('Power{',(int2str(getCAPACITY())),'}');
-        title(ax3,stringtoprint)
-        xlabel(ax3,time_unit)
-        ylabel(ax3,'Charge')
-        legend(ax3,int2str(c.SPEED_LIMITS(1)),int2str(c.SPEED_LIMITS(2)),int2str(c.SPEED_LIMITS(3)),int2str(c.SPEED_LIMITS(4)),int2str(c.SPEED_LIMITS(5)));
-        
-    end
-end
-
-
 close all
 figure
 y_plots = 2;
-x_plots = y_plots;
+x_plots = 3;
 count = 1;
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'elevation_interpolated');
+title(ax,'t (hr) vs Elevation (m)');
 hold on
 count = count +1;
-time = time_accumulator_cache(1,1,:)/3600;
-y = elevation_interpolated(:);
+time = t_cache(:)/3600;
+y = e_int(:);
 plot(time(:), y(:))
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'velocity');
+title(ax,'t vs s (m)');
 hold on
 count = count +1;
-time = time_accumulator_cache(1,1,:);
-y = velocity_cache(1,1,:);
+time = t_cache(:);
+y = distance_cache(:);
+plot(time(:), y(:))
+ax = subplot(x_plots,y_plots,count);
+
+title(ax,'t vs F_{trac}');
+hold on
+count = count +1;
+time = t_cache(:);
+y = force_trac_c(:);
 plot(time(:), y(:))
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'acceleration');
+title(ax,'t vs v (kph)');
 hold on
 count = count +1;
-time = time_accumulator_cache(1,1,:);
-y = acceleration_cache(1,1,:);
+time = t_cache(:);
+y = 3.6*velocity_cache(:);
 plot(time(:), y(:))
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'battery_charge');
+title(ax,'t vs Q (kWH)');
 hold on
 count = count +1;
-time = time_accumulator_cache(1,1,:);
+time = t_cache(:);
+y = bat_t(:)/3600/1000;
+plot(time(:), y(:))
 
-y = (battery_charge(1,1,:))/1000/3600;
+ax = subplot(x_plots,y_plots,count);
+title(ax,'t vs a (m/s)');
+hold on
+count = count +1;
+time = t_cache(:);
+y = acceleration_cache(:);
 plot(time(:), y(:))
 
 
@@ -315,8 +304,8 @@ WH = J/3600;
 end
 
 function [time] = dist_speed_to_time(distance, speed)
-distance = distance
-speed = speed
+distance = distance;
+speed = speed;
 time = distance/speed;
 end
 
@@ -328,7 +317,7 @@ function [cm] = inches_to_cm(inches)
 cm = 2.54*inches;
 end
 
-function [dist_inc, elev_inc, lat, long] = get_distance_and_elevation(distance_interpolated,elevation_interpolated,LATITUDES,LONGITUDES, index)
+function [dist_inc, elev_inc, lat, long] = get_DELL(distance_interpolated,elevation_interpolated,LATITUDES,LONGITUDES, index)
 %get_distance_and_elevation: get distance and elevation
 import constants.*;
 dist_inc = distance_interpolated(index);
