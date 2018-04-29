@@ -159,11 +159,12 @@ for trial = 1:1:trials             %for all speed limits
             
             
             %% DOESN'T CHANGE
-            E_M = W_J;
-            energy_c(trial,g,inc) = ds;
+            E_M = W_J/c.MOTOR_OUTPUT_EFFICIENCY;
+            
+            energy_c(trial,g,inc) = E_M;
             
             if (E_M > 0)
-                bat_o(trial,g,inc) = E_M*c.MOTOR_OUTPUT_EFFICIENCY;
+                bat_o(trial,g,inc) = E_M;
                 bat_i(trial,g,inc) = 0;
             else
                 bat_o(trial,g,inc) = 0;
@@ -201,58 +202,74 @@ qty                 = getQTY()
 weight              = getWEIGHT()
 
 close all
-figure
+figure('Name','Simulation of UQ-Kingbeach-Maleny-UQ Drive (228 km)');
+
 y_plots = 2;
 x_plots = 3;
 count = 1;
+time_unit = 'time (s)';
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'t (hr) vs Elevation (m)');
-hold on
-count = count +1;
-time = t_cache(:)/3600;
-y = e_int(:);
-plot(time(:), y(:))
-
-ax = subplot(x_plots,y_plots,count);
-title(ax,'t vs s (m)');
+title(ax,'Time vs Elevation');
 hold on
 count = count +1;
 time = t_cache(:);
-y = distance_cache(:);
+y = e_int(:);
 plot(time(:), y(:))
-ax = subplot(x_plots,y_plots,count);
+xlabel(ax,time_unit)
+ylabel(ax,'Elevation (m)')
 
-title(ax,'t vs F_{trac}');
+ax = subplot(x_plots,y_plots,count);
+title(ax,'Time vs Displacement');
+hold on
+count = count +1;
+time = t_cache(:);
+y = d_a_c(:);
+plot(time(:), y(:))
+xlabel(ax,time_unit)
+ylabel(ax,'Distance (m)')
+
+ax = subplot(x_plots,y_plots,count);
+title(ax,'Time vs Traction Force');
 hold on
 count = count +1;
 time = t_cache(:);
 y = force_trac_c(:);
 plot(time(:), y(:))
+xlabel(ax,time_unit)
+ylabel(ax,'F_{trac} (N)')
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'t vs v (kph)');
+title(ax,'Time vs Velocity');
 hold on
 count = count +1;
 time = t_cache(:);
 y = 3.6*velocity_cache(:);
 plot(time(:), y(:))
+xlabel(ax,time_unit)
+ylabel(ax,'Velocity (kph)')
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'t vs Q (kWH)');
+TITLE = strcat('Time vs Charge - Inital:',(int2str(capacity/1000/3600)),'kWH');
+title(ax,TITLE);
 hold on
 count = count +1;
 time = t_cache(:);
 y = bat_t(:)/3600/1000;
 plot(time(:), y(:))
+xlabel(ax,time_unit)
+ylabel(ax,'Charge (kWH)')
+axis([0 14000 0 50])
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'t vs a (m/s)');
+title(ax,'Time vs Acceleration');
 hold on
 count = count +1;
 time = t_cache(:);
 y = acceleration_cache(:);
 plot(time(:), y(:))
+xlabel(ax,time_unit)
+ylabel(ax,'Acceleration (m/s^2)')
 
 
 %% Function Definitions: File Manipulation

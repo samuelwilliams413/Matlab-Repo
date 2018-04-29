@@ -229,47 +229,59 @@ weight              = getWEIGHT()
 
 
 close all
-figure
+figure('Name','Simulation of Urban Drive [4*NEDC] (44 km)');
+
 y_plots = 2;
 x_plots = 3;
 count = 2;
-
-
+time_unit = 'time (s)';
 time = time_a_c(1,1,:);
 ax = subplot(x_plots,y_plots,count);
-title(ax,'t vs s (m)');
+title(ax,'Time vs Displacement');
 hold on
 count = count +1;
 y = displacement_c(1,1,:);
 plot(time(:), y(:))
-ax = subplot(x_plots,y_plots,count);
+xlabel(ax,time_unit)
+ylabel(ax,'Distance (m)')
 
-title(ax,'t vs F_{trac}');
+ax = subplot(x_plots,y_plots,count);
+title(ax,'Time vs Traction Force');
 hold on
 count = count +1;
 y = force_trac_c(1,1,:);
 plot(time(:), y(:))
+xlabel(ax,time_unit)
+ylabel(ax,'F_{trac} (N)')
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'t vs v (kph)');
+title(ax,'Time vs Velocity');
 hold on
 count = count +1;
 y = 3.6*velocity_c(1,1,:);
 plot(time(:), y(:))
+xlabel(ax,time_unit)
+ylabel(ax,'Velocity (kph)')
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'t vs Q (kWH)');
+TITLE = strcat('Time vs Charge - Inital:',(int2str(capacity/1000/3600)),'kWH');
+title(ax,TITLE);
 hold on
 count = count +1;
 y = bat_t(1,1,:)/3600/1000;
 plot(time(:), y(:))
+xlabel(ax,time_unit)
+ylabel(ax,'Charge (kWH)')
+axis([0 6000 0 50])
 
 ax = subplot(x_plots,y_plots,count);
-title(ax,'t vs a (m/s)');
+title(ax,'Time vs Acceleration');
 hold on
 count = count +1;
 y = acceleration_c(1,1,:);
 plot(time(:), y(:))
+xlabel(ax,time_unit)
+ylabel(ax,'Acceleration (m/s^2)')
 
 
 

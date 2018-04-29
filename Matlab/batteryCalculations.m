@@ -31,16 +31,18 @@ E           = 4.5e+06 + 1.1e+06 + 2e+06;
 CAP         = (E/3600)/1000; %kwh
 
 
-CAP         = 25e+03;	
+CAP         = 28e+03;	
 E           = 3600*CAP;
 CAP         = E/3600;
 
 SAFETY_FACTOR = 1.5;
 
+
+
 capacity    = E*SAFETY_FACTOR
 qty         = capacity/E_bat
 mass        = M_bat
 
-CAP         = (E/3600)/1000 %kwh
+CAP         = (capacity/3600)/1000 %kwh
 MASS_TOTAL = (M_con + M_bat*qty)
 end

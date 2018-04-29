@@ -15,9 +15,9 @@ classdef c
         SPEED_LIMITS = [30,50,70,90,110];
         
         TRANSMISSION_EFFICIENCY = 1;
-        MOTOR_OUTPUT_EFFICIENCY = 1;
+        MOTOR_OUTPUT_EFFICIENCY = 0.85; % Worst case scenerio, lower bound (Nissan Leaf)
 
         
-        REGEN_BRAKING_EFFICIENCY = 1; %some random figure i found online
+        REGEN_BRAKING_EFFICIENCY = 0; %some random figure i found online
     end
 end
