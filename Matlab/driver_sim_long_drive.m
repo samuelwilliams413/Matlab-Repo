@@ -73,16 +73,10 @@ for trial = 1:1:1             %for all speed limits
 end
 
 vc = kmhr_to_ms(vc)
-%vc = movmean(vc,10000/resolution);
-
-for s = 1:1:0
-    smoothing = s
-    vc = smooth(vc);
-end
 
 vc = smooth(vc);
 for i = 1:1:10
-vc = movmean(vc, 30);
+vc = movmean(vc, 5);
 vc = round(vc,-1);
 end
 for i = 1:1:10
@@ -108,7 +102,6 @@ gears = 1;
 distance_cache          = zeros(trials,gears,length(d_int));
 d_a_c                   = zeros(trials,gears,length(d_int));
 gradient_cache         = zeros(trials,gears,length(d_int));
-vc                      = zeros(trials,gears,length(d_int));
 velocity_cache          = zeros(trials,gears,length(d_int));
 acceleration_cache    	= zeros(trials,gears,length(d_int));
 F_trac_cache            = zeros(trials,gears,length(d_int));
@@ -155,63 +148,59 @@ for trial = 1:1:trials             %for all speed limits
         time_inc_old = 0;
         for inc = 1:1:length(d_int)          %every 10 m
             [d_i, e_i, lat, long] = get_DELL(d_int,e_int,LATITUDES,LONGITUDES, inc);
-            [minimum_distance, index] = getIndex(LATITUDES_gov,LONGITUDES_gov,lat, long);
-            
-            
-            
             
             if (inc == 1)
+                                u = 0;
                 dd = d_i;
                 de = e_i;
-                u = v;
-                
-                ds = sqrt(dd^2 + de^2);
-                t_i = dist_speed_to_time(ds, u);
-                dt = t_i;
-                
-                d_o = d_i;
-                e_o = e_i;
-                t_cache(trial,g,inc) = dt;
+
                 d_a_c(trial,g,inc) = dd;
             else
                 dd = d_i - d_o;
                 de = e_i - e_o;
-                
-                
-                ds = sqrt(dd^2 + de^2);
-                t_i = dist_speed_to_time(ds, u);
-                dt = t_i;
-                
-                
-                
-                d_o = d_i;
-                e_o = e_i;
-                t_cache(trial,g,inc) = dt + t_cache(trial,g,(inc - 1));
                 d_a_c(trial,g,inc) = dd + d_a_c(trial,g,(inc - 1));
             end
             
+
+            
+            ds = sqrt(dd^2 + de^2);
             current_distance = d_a_c(trial,g,inc);
-            v = 0;
-            for i = 1:1:length(vc)
-                if(current_distance < vc(i,2))
-                    v = vc(i,1);
-                end
+            
+            place = 2;
+            v = vc(place,1);
+            while (vc(place,2) < current_distance)
+                v = vc(place,1);
+                place = place + 1;
             end
-                    
-    
+            
+            
+            dv = v - u;
+            a = (v^2 - u^2)/(2*ds);
+            dt = dv/a;
+            if(a == 0)
+                dt = ds/v;
+            end
+            
+            if(dt == inf)
+                dt = 0;
+            end
+            
             
             v_store(inc) = v;
             u_store(inc) = u;
-            
-            dv = v - u;
-            u = v;
-            a = dv/dt;
-            
             distance_cache(trial,g,inc) = ds;
             acceleration_cache(trial,g,inc) = a;
             velocity_cache(trial,g,inc) = v;
             
+            if (inc == 1)
+                t_cache(trial,g,inc) = dt;
+            else
+                t_cache(trial,g,inc) = dt + t_cache(trial,g,(inc - 1));    
+            end
             
+            [dt, a, v, ds, dv];
+            
+            u = v;
             
             %%
             

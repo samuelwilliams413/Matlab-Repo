@@ -272,7 +272,7 @@ y = bat_t(1,1,:)/3600/1000;
 plot(time(:), y(:))
 xlabel(ax,time_unit)
 ylabel(ax,'Charge (kWH)')
-%axis([0 6000 0 50])
+axis([0 6000 0 20])
 
 ax = subplot(x_plots,y_plots,count);
 title(ax,'Time vs Acceleration');

@@ -16,8 +16,10 @@ classdef c
         
         TRANSMISSION_EFFICIENCY = 1;
         MOTOR_OUTPUT_EFFICIENCY = 0.85; % Worst case scenerio, lower bound (Nissan Leaf)
-
         
-        REGEN_BRAKING_EFFICIENCY = 0.65; %some random figure i found online
+        %– Urban driving scenarios: 0.65
+        %– Highway driving scenarios: 0.94
+        %– Efficiency ranges from 0.65 to 0.94
+        REGEN_BRAKING_EFFICIENCY = 0.0; %some random figure i found online
     end
 end

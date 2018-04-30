@@ -22,12 +22,12 @@ E_Cell = E_total/N_modules;
 E_bat = E_Cell*3600*BATTERY_EFFICIENCY;
 
 M_con = 0;
-M_bat = M_cell;
+M_bat = M_cell
 
 %% POWER REQUIREMENTS
 SAFETY_FACTOR = 1.5;
 
-E = 0;
+E = 6.9*3600*1000
 
 capacity    = E*SAFETY_FACTOR
 qty         = capacity/E_bat
@@ -35,4 +35,6 @@ mass        = M_bat
 
 CAP         = (capacity/3600)/1000 %kwh
 MASS_TOTAL = (M_con + M_bat*qty)
+
+charge = 3250*qty/1000
 end
